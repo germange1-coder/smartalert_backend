@@ -1,0 +1,146 @@
+DROP DATABASE IF EXISTS smartalert;
+CREATE DATABASE smartalert;
+USE smartalert;
+
+CREATE TABLE usuarios (
+    id_usuario INT AUTO_INCREMENT PRIMARY KEY,
+    nombre VARCHAR(100) NOT NULL,
+    correo VARCHAR(100) UNIQUE NOT NULL,
+    contrasena VARCHAR(255) NOT NULL,
+    rol ENUM('usuario','admin') DEFAULT 'usuario',
+    total_reportes INT DEFAULT 0,
+    reputacion_usuario INT DEFAULT 100,
+    fecha_registro TIMESTAMP DEFAULT CURRENT_TIMESTAMP);
+
+
+CREATE TABLE areas (
+    id_area INT AUTO_INCREMENT PRIMARY KEY,
+    codigo_postal VARCHAR(10) NOT NULL UNIQUE,
+    colonia VARCHAR(100),
+    ciudad VARCHAR(100),
+    estado VARCHAR(100),
+    latitud DECIMAL(10,6),
+    longitud DECIMAL(10,6),
+    total_reportes INT DEFAULT 0,
+    indice_peligro INT DEFAULT 0,
+    nivel_reputacion ENUM('Alta','Media','Baja') DEFAULT 'Alta');
+
+
+CREATE TABLE tipos_reporte (
+    id_tipo INT AUTO_INCREMENT PRIMARY KEY,
+    nombre_tipo VARCHAR(50) NOT NULL);
+
+INSERT INTO tipos_reporte (nombre_tipo) VALUES
+('Robo'),
+('Asalto'),
+('Accidente'),
+('Incendio'),
+('Vandalismo'),
+('Otro');
+
+
+CREATE TABLE reportes (
+    id_reporte INT AUTO_INCREMENT PRIMARY KEY,
+    id_usuario INT NOT NULL,
+    id_area INT NOT NULL,
+    id_tipo INT NOT NULL,
+    descripcion TEXT,
+    latitud DECIMAL(10,6),
+    longitud DECIMAL(10,6),
+    severidad INT CHECK (severidad BETWEEN 1 AND 5),
+    imagen_url VARCHAR(255),
+    estado ENUM('pendiente','aprobado','rechazado') DEFAULT 'pendiente',
+    fecha_reporte TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (id_usuario) REFERENCES usuarios(id_usuario)
+        ON DELETE CASCADE ON UPDATE CASCADE,
+
+    FOREIGN KEY (id_area) REFERENCES areas(id_area)
+        ON DELETE CASCADE ON UPDATE CASCADE,
+
+    FOREIGN KEY (id_tipo) REFERENCES tipos_reporte(id_tipo)
+        ON DELETE CASCADE ON UPDATE CASCADE);
+
+
+CREATE TABLE moderacion (
+    id_moderacion INT AUTO_INCREMENT PRIMARY KEY,
+    id_reporte INT NOT NULL,
+    id_admin INT NOT NULL,
+    accion ENUM('aprobado','rechazado') NOT NULL,
+    motivo TEXT,
+    fecha_modificacion TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+
+    FOREIGN KEY (id_reporte) REFERENCES reportes(id_reporte)
+        ON DELETE CASCADE ON UPDATE CASCADE,
+
+    FOREIGN KEY (id_admin) REFERENCES usuarios(id_usuario)
+        ON DELETE CASCADE ON UPDATE CASCADE);
+
+
+INSERT INTO usuarios (nombre, correo, contrasena, rol) VALUES
+('Admin', 'admin@smartalert.com', '123456', 'admin'),
+('Juan Perez', 'juan@gmail.com', '123456', 'usuario'),
+('Maria Lopez', 'maria@gmail.com', '123456', 'usuario');
+
+INSERT INTO areas (codigo_postal, colonia, ciudad, estado, latitud, longitud) VALUES
+('26000', 'Centro', 'Piedras Negras', 'Coahuila', 28.7000, -100.5230),
+('26100', 'Roma', 'Piedras Negras', 'Coahuila', 28.7100, -100.5300),
+('26200', 'Guerrero', 'Piedras Negras', 'Coahuila', 28.7180, -100.5180);
+
+-- Reportes de prueba
+INSERT INTO reportes (id_usuario, id_area, id_tipo, descripcion, latitud, longitud, severidad, imagen_url) VALUES
+(2, 1, 1, 'Robo en tienda', 28.7001, -100.5231, 4, 'foto1.jpg'),
+(3, 2, 3, 'Accidente en la esquina', 28.7101, -100.5301, 3, 'foto2.jpg'),
+(2, 3, 4, 'Incendio pequeño', 28.7181, -100.5181, 5, 'foto3.jpg');
+
+
+DELIMITER $$
+
+CREATE TRIGGER actualizar_area_usuario
+AFTER UPDATE ON reportes
+FOR EACH ROW
+BEGIN
+    IF NEW.estado = 'aprobado' AND OLD.estado <> 'aprobado' THEN
+
+        -- Actualiza área
+        UPDATE areas
+        SET total_reportes = total_reportes + 1,
+            indice_peligro = indice_peligro + (NEW.severidad * 5)
+        WHERE id_area = NEW.id_area;
+
+        -- Actualiza reputación del área
+        UPDATE areas
+        SET nivel_reputacion =
+            CASE
+                WHEN indice_peligro < 40 THEN 'Alta'
+                WHEN indice_peligro BETWEEN 40 AND 80 THEN 'Media'
+                ELSE 'Baja'
+            END
+        WHERE id_area = NEW.id_area;
+
+        -- Actualiza usuario
+        UPDATE usuarios
+        SET total_reportes = total_reportes + 1
+        WHERE id_usuario = NEW.id_usuario;
+
+    END IF;
+END$$
+
+DELIMITER ;
+
+
+SELECT 
+    r.id_reporte,
+    u.nombre AS usuario,
+    a.colonia,
+    a.ciudad,
+    a.estado,
+    t.nombre_tipo AS tipo,
+    r.descripcion,
+    r.severidad,
+    r.estado,
+    r.fecha_reporte
+FROM reportes r
+JOIN usuarios u ON r.id_usuario = u.id_usuario
+JOIN areas a ON r.id_area = a.id_area
+JOIN tipos_reporte t ON r.id_tipo = t.id_tipo;
