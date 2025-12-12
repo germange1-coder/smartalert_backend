@@ -10,7 +10,6 @@ use App\Models\Usuario;
 
 class ReporteController extends Controller
 {
-
     // MOSTRAR TODOS
     public function index()
     {
@@ -18,55 +17,66 @@ class ReporteController extends Controller
         return response()->json($reportes, 200);
     }
 
-    // ✅ CREAR REPORTE (SI NO EXISTE ÁREA LA CREA)
-    public function store(Request $request)
-    {
-        $request->validate([
-            'id_usuario'    => 'required|integer|exists:usuarios,id_usuario',
-            'codigo_postal' => 'required|string',
-            'id_tipo'       => 'required|exists:tipos_reporte,id_tipo',
-            'descripcion'   => 'required|string',
-            'latitud'        => 'required|numeric',
-            'longitud'       => 'required|numeric',
-            'severidad'      => 'required|integer|min:1|max:5'
-        ]);
+// ✅ CREAR REPORTE (SI NO EXISTE ÁREA LA CREA) + SUBIDA DE IMAGEN
+public function store(Request $request)
+{
+    $request->validate([
+        'id_usuario'    => 'required|integer|exists:usuarios,id_usuario',
+        'codigo_postal' => 'required|string',
+        'id_tipo'       => 'required|exists:tipos_reporte,id_tipo',
+        'descripcion'   => 'required|string',
+        'latitud'       => 'required|numeric',
+        'longitud'      => 'required|numeric',
+        'severidad'     => 'required|integer|min:1|max:5',
+        'imagen'        => 'nullable|image|mimes:jpg,jpeg,png|max:5120' // max 5MB
+    ]);
 
-        $usuario = Usuario::find($request->id_usuario);
+    $usuario = Usuario::find($request->id_usuario);
 
-        if (!$usuario) {
-            return response()->json(['mensaje' => 'Usuario no encontrado'], 404);
-        }
-
-        // Buscar área por código postal
-        $area = Area::where('codigo_postal', $request->codigo_postal)->first();
-
-        if (!$area) {
-            $area = Area::create([
-                'codigo_postal' => $request->codigo_postal,
-                'colonia'       => $request->colonia ?? 'Sin dato',
-                'ciudad'        => $request->ciudad ?? 'Sin dato',
-                'estado'        => $request->estado ?? 'Sin dato',
-                'latitud'       => $request->latitud,
-                'longitud'      => $request->longitud
-            ]);
-        }
-
-        $reporte = Reporte::create([
-            'id_usuario' => $usuario->id_usuario,
-            'id_area'    => $area->id_area,
-            'id_tipo'    => $request->id_tipo,
-            'descripcion'=> $request->descripcion,
-            'latitud'    => $request->latitud,
-            'longitud'   => $request->longitud,
-            'severidad'  => $request->severidad,
-            'imagen_url' => $request->imagen_url ?? null
-        ]);
-
-        return response()->json([
-            'mensaje' => 'Reporte creado correctamente',
-            'reporte' => $reporte
-        ], 201);
+    if (!$usuario) {
+        return response()->json(['mensaje' => 'Usuario no encontrado'], 404);
     }
+
+    // Buscar área por código postal o crearla
+    $area = Area::firstOrCreate(
+        ['codigo_postal' => $request->codigo_postal],
+        [
+            'colonia'  => $request->colonia ?? 'Sin dato',
+            'ciudad'   => $request->ciudad ?? 'Sin dato',
+            'estado'   => $request->estado ?? 'Sin dato',
+            'latitud'  => $request->latitud,
+            'longitud' => $request->longitud
+        ]
+    );
+
+    // Subida de imagen opcional
+    $imagenUrl = null;
+
+    if ($request->hasFile('imagen')) {
+        // 📌 Guarda directo en storage/app/public/reportes
+        $path = $request->file('imagen')->store('reportes', 'public');
+
+        // 📌 URL pública correcta
+        $imagenUrl = 'storage/' . $path;
+    }
+
+    // Crear reporte
+    $reporte = Reporte::create([
+        'id_usuario'  => $request->id_usuario,
+        'id_area'     => $area->id_area,
+        'id_tipo'     => $request->id_tipo,
+        'descripcion' => $request->descripcion,
+        'latitud'     => $request->latitud,
+        'longitud'    => $request->longitud,
+        'severidad'   => $request->severidad,
+        'imagen_url'  => $imagenUrl
+    ]);
+
+    return response()->json([
+        'mensaje' => 'Reporte creado exitosamente',
+        'reporte' => $reporte
+    ]);
+}
 
     // MOSTRAR UN REPORTE
     public function show(Request $request)
@@ -139,4 +149,34 @@ class ReporteController extends Controller
             'reportes' => $reportes
         ],200);
     }
+    //reportes cercanos 
+    public function reportesCercanos(Request $request)
+{
+    $request->validate([
+        'latitud' => 'required|numeric',
+        'longitud' => 'required|numeric',
+        'radio' => 'nullable|numeric' // kilómetros
+    ]);
+
+    $lat = $request->latitud;
+    $lng = $request->longitud;
+    $radio = $request->radio ?? 10; // default 10 km
+
+    $reportes = Reporte::with(['usuario','area','tipo'])
+    ->where('estado', 'aprobado') // solo aceptados
+    ->selectRaw("*, 
+        (6371 * acos(
+            cos(radians(?)) *
+            cos(radians(latitud)) *
+            cos(radians(longitud) - radians(?)) +
+            sin(radians(?)) *
+            sin(radians(latitud))
+        )) AS distancia", [$lat, $lng, $lat])
+    ->having('distancia', '<=', $radio)
+    ->orderBy('distancia', 'asc')
+    ->get();
+
+    return response()->json($reportes);
+}
+
 }

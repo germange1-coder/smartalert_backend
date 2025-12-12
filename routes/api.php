@@ -6,7 +6,7 @@ use App\Http\Controllers\Api\ModeracionController;
 use App\Http\Controllers\Api\UsuarioController;
 use App\Http\Controllers\Api\ReporteController;
 use App\Http\Controllers\Api\AreaController;
-
+use App\Http\Controllers\Api\TipoReporteController;
 
 // ✅ Verificar que la API funciona
 Route::get('/status', function () {
@@ -27,6 +27,7 @@ Route::post('/crear_area', [AreaController::class, 'store']);
 Route::post('/buscar_area', [AreaController::class, 'show']);
 
 /* REPORTES */
+Route::post('/reportes_cercanos', [ReporteController::class, 'reportesCercanos']);
 Route::get('/listar_reportes', [ReporteController::class, 'index']);
 Route::post('/crear_reporte', [ReporteController::class, 'store']); // CREA AREA SI NO EXISTE
 Route::post('/buscar_reporte', [ReporteController::class, 'show']);
@@ -37,3 +38,5 @@ Route::post('/reportes_usuario', [ReporteController::class, 'reportesPorUsuario'
 
 /* MODERACIÓN */
 Route::post('/moderar', [ModeracionController::class, 'aprobar']);
+
+Route::get('/listar_tipos_reporte', [TipoReporteController::class, 'index']);
