@@ -15,6 +15,8 @@ Route::get('/status', function () {
         'mensaje' => 'API SmartAlert funcionando'
     ]);
 });
+
+Route::post('/buscar_usuario_correo', [UsuarioController::class, 'buscarPorCorreo']);
 Route::get('/listar_usuarios', [UsuarioController::class, 'index']);          // listar
 Route::post('/crear_usuario', [UsuarioController::class, 'store']);    // crear
 Route::post('/buscar_usuario', [UsuarioController::class, 'show']);    // buscar por id en JSON

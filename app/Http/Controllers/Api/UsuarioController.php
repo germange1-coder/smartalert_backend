@@ -101,4 +101,23 @@ class UsuarioController extends Controller
             'mensaje' => ' Usuario eliminado correctamente'
         ], 200);
     }
+    
+    public function buscarPorCorreo(Request $request)
+{
+    $request->validate([
+        'correo' => 'required|email'
+    ]);
+
+    $usuario = Usuario::where('correo', $request->correo)->first();
+
+    if (!$usuario) {
+        return response()->json([
+            'mensaje' => 'Usuario no encontrado'
+        ], 404);
+    }
+
+    return response()->json($usuario, 200);
+}
+
+    
 }

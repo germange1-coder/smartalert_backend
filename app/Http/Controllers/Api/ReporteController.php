@@ -9,8 +9,7 @@ use App\Models\Area;
 use App\Models\Usuario;
 
 class ReporteController extends Controller
-{
-    // MOSTRAR TODOS
+{    
     public function index()
     {
         $reportes = Reporte::with(['usuario','area','tipo'])->get();
@@ -106,24 +105,25 @@ public function store(Request $request)
 
     // ✅ REPORTES POR USUARIO (por ID)
     public function reportesPorUsuario(Request $request)
-    {
-        $request->validate([
-            'id_usuario' => 'required|exists:usuarios,id_usuario'
-        ]);
+{
+    $request->validate([
+        'id_usuario' => 'required|exists:usuarios,id_usuario'
+    ]);
 
-        $usuario = Usuario::find($request->id_usuario);
+    $reportes = Reporte::with([
+            'usuario',   // 👈 ESTO FALTABA
+            'area',
+            'tipo'
+        ])
+        ->where('id_usuario', $request->id_usuario)
+        ->orderByDesc('fecha_reporte')
+        ->get();
 
-        $reportes = Reporte::with(['area','tipo'])
-            ->where('id_usuario', $usuario->id_usuario)
-            ->orderBy('fecha_reporte','desc')
-            ->get();
+    return response()->json([
+        'reportes' => $reportes
+    ], 200);
+}
 
-        return response()->json([
-            'usuario' => $usuario->nombre,
-            'total' => $reportes->count(),
-            'reportes' => $reportes
-        ]);
-    }
 
     // ✅ REPORTES POR ÁREA
     public function reportesPorArea(Request $request)
