@@ -33,7 +33,8 @@ Route::post('/reportes_cercanos', [ReporteController::class, 'reportesCercanos']
 Route::get('/listar_reportes', [ReporteController::class, 'index']);
 Route::post('/crear_reporte', [ReporteController::class, 'store']); // CREA AREA SI NO EXISTE
 Route::post('/buscar_reporte', [ReporteController::class, 'show']);
-Route::delete('/eliminar_reporte', [ReporteController::class, 'destroy']);
+Route::post('/eliminar_reporte', [ReporteController::class, 'destroy']);
+Route::put('/actualizar_reporte', [ReporteController::class, 'update']);
 Route::post('/reportes_area', [ReporteController::class, 'reportesPorArea']);
 Route::post('/reportes_usuario', [ReporteController::class, 'reportesPorUsuario']);
 

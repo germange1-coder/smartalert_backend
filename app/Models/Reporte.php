@@ -8,6 +8,8 @@ class Reporte extends Model
 {
     protected $table = 'reportes';
     protected $primaryKey = 'id_reporte';
+    public $incrementing = true;  // si tu id es autoincremental
+    protected $keyType = 'int';
     public $timestamps = false; 
     
     protected $fillable = [
