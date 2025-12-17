@@ -78,18 +78,19 @@ public function store(Request $request)
 }
 
     // MOSTRAR UN REPORTE
-    public function show(Request $request)
-    {
-        $request->validate([
-            'id_reporte' => 'required|exists:reportes,id_reporte'
-        ]);
+   public function show(Request $request)
+{
+    $request->validate([
+        'id_reporte' => 'required|exists:reportes,id_reporte'
+    ]);
 
-        $reporte = Reporte::with(['usuario','area','tipo'])
-                    ->where('id_reporte', $request->id_reporte)
-                    ->first();
+    $reporte = Reporte::with(['usuario','area','tipo'])
+        ->where('id_reporte', $request->id_reporte)
+        ->first();
 
-        return response()->json($reporte, 200);
-    }
+    return response()->json($reporte, 200);
+}
+
 
     // ELIMINAR REPORTE
     public function destroy(Request $request)
@@ -178,5 +179,54 @@ public function store(Request $request)
 
     return response()->json($reportes);
 }
+    public function update(Request $request)
+{
+    $request->validate([
+        'id_reporte'    => 'required|exists:reportes,id_reporte',
+        'id_tipo'       => 'required|exists:tipos_reporte,id_tipo',
+        'descripcion'   => 'required|string',
+        'latitud'       => 'required|numeric',
+        'longitud'      => 'required|numeric',
+        'codigo_postal' => 'required|string',
+        'colonia'       => 'nullable|string',
+        'ciudad'        => 'nullable|string',
+        'estado'        => 'nullable|string',
+    ]);
+
+    $reporte = Reporte::findOrFail($request->id_reporte);
+
+    // 🔁 BUSCAR O CREAR ÁREA POR CÓDIGO POSTAL
+    $area = Area::firstOrCreate(
+        ['codigo_postal' => $request->codigo_postal],
+        [
+            'colonia' => $request->colonia ?? 'Sin dato',
+            'ciudad'  => $request->ciudad ?? 'Sin dato',
+            'estado'  => $request->estado ?? 'Sin dato',
+            'latitud' => $request->latitud,
+            'longitud'=> $request->longitud,
+        ]
+    );
+
+    // 🔄 SI YA EXISTÍA, ACTUALIZA COORDENADAS
+    $area->update([
+        'latitud'  => $request->latitud,
+        'longitud' => $request->longitud,
+    ]);
+
+    // 🔥 ACTUALIZA REPORTE
+    $reporte->update([
+        'id_tipo'     => $request->id_tipo,
+        'descripcion' => $request->descripcion,
+        'latitud'     => $request->latitud,
+        'longitud'    => $request->longitud,
+        'id_area'     => $area->id_area,
+    ]);
+
+    return response()->json([
+        'ok' => true,
+        'mensaje' => 'Reporte y área actualizados correctamente'
+    ], 200);
+}
+
 
 }
