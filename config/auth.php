@@ -36,11 +36,18 @@ return [
     */
 
     'guards' => [
-        'web' => [
-            'driver' => 'session',
-            'provider' => 'users',
-        ],
+    'web' => [
+        'driver' => 'session',
+        'provider' => 'users',
     ],
+
+    // ✅ Panel web (admin) - sesión separada
+    'admin' => [
+        'driver' => 'session',
+        'provider' => 'admins',
+    ],
+],
+    
 
     /*
     |--------------------------------------------------------------------------
@@ -64,6 +71,13 @@ return [
             'driver' => 'eloquent',
             'model' => env('AUTH_MODEL', App\Models\User::class),
         ],
+
+            // ✅ Provider para admins del panel (tabla usuarios)
+        'admins' => [
+        'driver' => 'eloquent',
+        'model' => App\Models\AdminUser::class,
+        ],
+
 
         // 'users' => [
         //     'driver' => 'database',
